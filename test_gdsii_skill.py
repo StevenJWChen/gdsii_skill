@@ -7,6 +7,7 @@ Tests basic GDSII operations using gdstk
 import gdstk
 import os
 import sys
+import subprocess
 
 def test_create_simple_gds():
     """Test 1: Create a simple GDSII file"""
@@ -264,10 +265,88 @@ def test_merge_files():
         return False
 
 
-def test_skill_structure():
-    """Test 7: Verify skill file structure"""
+def test_display_gds():
+    """Test 7: Test display/visualization feature"""
     print("\n" + "="*70)
-    print("TEST 7: Verifying skill structure")
+    print("TEST 7: Testing display/visualization feature")
+    print("="*70)
+
+    if not os.path.exists('test_simple.gds'):
+        print("✗ test_simple.gds not found")
+        return False
+
+    # Test display using the gds_helper.py script
+    import subprocess
+    result = subprocess.run([
+        'python3', 'gdsii-skill/scripts/gds_helper.py',
+        'display', 'test_simple.gds',
+        '-o', 'test_display_output.png'
+    ], capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"✗ Display command failed: {result.stderr}")
+        return False
+
+    if os.path.exists('test_display_output.png'):
+        size = os.path.getsize('test_display_output.png')
+        print(f"✓ Display feature working")
+        print(f"  Created test_display_output.png ({size} bytes)")
+        return True
+    else:
+        print("✗ Display output file not created")
+        return False
+
+
+def test_crop_gds():
+    """Test 8: Test crop/cut feature"""
+    print("\n" + "="*70)
+    print("TEST 8: Testing crop/cut feature")
+    print("="*70)
+
+    if not os.path.exists('test_simple.gds'):
+        print("✗ test_simple.gds not found")
+        return False
+
+    # Test crop using the gds_helper.py script
+    import subprocess
+    result = subprocess.run([
+        'python3', 'gdsii-skill/scripts/gds_helper.py',
+        'crop', 'test_simple.gds', 'test_crop_output.gds',
+        '--bbox', '5', '5', '15', '15'
+    ], capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"✗ Crop command failed: {result.stderr}")
+        return False
+
+    if not os.path.exists('test_crop_output.gds'):
+        print("✗ Crop output file not created")
+        return False
+
+    # Verify the cropped file
+    lib = gdstk.read_gds('test_crop_output.gds')
+
+    if len(lib.cells) == 0:
+        print("✗ No cells in cropped file")
+        return False
+
+    cell = lib.cells[0]
+    bbox = cell.bounding_box()
+
+    print(f"✓ Crop feature working")
+    print(f"  Created test_crop_output.gds")
+    print(f"  Cell name: {cell.name}")
+    if bbox:
+        print(f"  Cropped size: {bbox[1][0] - bbox[0][0]:.2f} x {bbox[1][1] - bbox[0][1]:.2f} µm")
+    print(f"  Polygons: {len(cell.polygons)}")
+
+    return True
+
+
+def test_skill_structure():
+    """Test 9: Verify skill file structure"""
+    print("\n" + "="*70)
+    print("TEST 9: Verifying skill structure")
     print("="*70)
 
     skill_dir = "gdsii-skill"
@@ -330,6 +409,8 @@ def main():
         ("Create parametric cell", test_create_parametric_cell),
         ("Calculate areas", test_area_calculation),
         ("Merge GDSII files", test_merge_files),
+        ("Display/visualize GDS", test_display_gds),
+        ("Crop/cut GDS region", test_crop_gds),
         ("Verify skill structure", test_skill_structure),
     ]
 
@@ -367,7 +448,9 @@ def main():
         'test_simple.gds',
         'test_layer0.gds',
         'test_resistor.gds',
-        'test_merged.gds'
+        'test_merged.gds',
+        'test_display_output.png',
+        'test_crop_output.gds'
     ]
 
     for file in test_files:
