@@ -10,9 +10,16 @@ import json
 
 try:
     import gdspy
+    USE_GDSPY = True
 except ImportError:
-    print("Error: gdspy not installed. Run: pip install gdspy --break-system-packages")
-    sys.exit(1)
+    try:
+        import gdstk
+        USE_GDSPY = False
+        print("Note: Using gdstk (gdspy not available)")
+    except ImportError:
+        print("Error: Neither gdspy nor gdstk is installed.")
+        print("Run: pip install gdstk --break-system-packages")
+        sys.exit(1)
 
 
 def inspect_gds(filename, verbose=False):
