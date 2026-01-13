@@ -33,43 +33,89 @@ except ImportError:
 
 def inspect_gds(filename, verbose=False):
     """Inspect GDSII file and print summary."""
-    lib = gdspy.GdsLibrary(infile=filename)
-    
-    print(f"\n{'='*70}")
-    print(f"GDSII File: {filename}")
-    print(f"{'='*70}")
-    print(f"Library Name: {lib.name}")
-    print(f"Unit: {lib.unit} (user), {lib.precision} (database)")
-    print(f"Total Cells: {len(lib.cells)}")
-    
-    # Top-level cells
-    top_cells = lib.top_level()
-    print(f"\nTop-Level Cells ({len(top_cells)}):")
-    for cell in top_cells:
-        print(f"  • {cell.name}")
-    
-    # Collect layers
-    all_layers = set()
-    for cell in lib.cells.values():
-        for element in cell.elements:
-            if hasattr(element, 'layer'):
-                all_layers.add((element.layer, element.datatype))
-    
-    print(f"\nLayers Used ({len(all_layers)}):")
-    for layer, dt in sorted(all_layers):
-        print(f"  Layer {layer:3d}, Datatype {dt:2d}")
-    
-    if verbose:
-        print(f"\nDetailed Cell Information:")
-        for name, cell in sorted(lib.cells.items()):
-            print(f"\n  Cell: {name}")
-            print(f"    Elements: {len(cell.elements)}")
-            print(f"    References: {len(cell.references)}")
-            bbox = cell.get_bounding_box()
-            if bbox:
-                width = bbox[1][0] - bbox[0][0]
-                height = bbox[1][1] - bbox[0][1]
-                print(f"    Size: {width:.2f} x {height:.2f}")
+    if USE_GDSPY:
+        lib = gdspy.GdsLibrary(infile=filename)
+
+        print(f"\n{'='*70}")
+        print(f"GDSII File: {filename}")
+        print(f"{'='*70}")
+        print(f"Library Name: {lib.name}")
+        print(f"Unit: {lib.unit} (user), {lib.precision} (database)")
+        print(f"Total Cells: {len(lib.cells)}")
+
+        # Top-level cells
+        top_cells = lib.top_level()
+        print(f"\nTop-Level Cells ({len(top_cells)}):")
+        for cell in top_cells:
+            print(f"  • {cell.name}")
+
+        # Collect layers
+        all_layers = set()
+        for cell in lib.cells.values():
+            for element in cell.elements:
+                if hasattr(element, 'layer'):
+                    all_layers.add((element.layer, element.datatype))
+
+        print(f"\nLayers Used ({len(all_layers)}):")
+        for layer, dt in sorted(all_layers):
+            print(f"  Layer {layer:3d}, Datatype {dt:2d}")
+
+        if verbose:
+            print(f"\nDetailed Cell Information:")
+            for name, cell in sorted(lib.cells.items()):
+                print(f"\n  Cell: {name}")
+                print(f"    Elements: {len(cell.elements)}")
+                print(f"    References: {len(cell.references)}")
+                bbox = cell.get_bounding_box()
+                if bbox:
+                    width = bbox[1][0] - bbox[0][0]
+                    height = bbox[1][1] - bbox[0][1]
+                    print(f"    Size: {width:.2f} x {height:.2f}")
+    else:
+        # Using gdstk
+        lib = gdstk.read_gds(filename)
+
+        print(f"\n{'='*70}")
+        print(f"GDSII File: {filename}")
+        print(f"{'='*70}")
+        print(f"Library Name: {lib.name}")
+        print(f"Unit: {lib.unit}")
+        print(f"Precision: {lib.precision}")
+        print(f"Total Cells: {len(lib.cells)}")
+
+        # Top-level cells (gdstk: cells that aren't referenced)
+        all_referenced = set()
+        for cell in lib.cells:
+            for ref in cell.references:
+                all_referenced.add(ref.cell.name)
+        top_cells = [c for c in lib.cells if c.name not in all_referenced]
+
+        print(f"\nTop-Level Cells ({len(top_cells)}):")
+        for cell in top_cells:
+            print(f"  • {cell.name}")
+
+        # Collect layers
+        all_layers = set()
+        for cell in lib.cells:
+            for poly in cell.polygons:
+                all_layers.add((poly.layer, poly.datatype))
+
+        print(f"\nLayers Used ({len(all_layers)}):")
+        for layer, dt in sorted(all_layers):
+            print(f"  Layer {layer:3d}, Datatype {dt:2d}")
+
+        if verbose:
+            print(f"\nDetailed Cell Information:")
+            for cell in sorted(lib.cells, key=lambda c: c.name):
+                print(f"\n  Cell: {cell.name}")
+                print(f"    Polygons: {len(cell.polygons)}")
+                print(f"    Paths: {len(cell.paths)}")
+                print(f"    References: {len(cell.references)}")
+                bbox = cell.bounding_box()
+                if bbox is not None:
+                    width = bbox[1][0] - bbox[0][0]
+                    height = bbox[1][1] - bbox[0][1]
+                    print(f"    Size: {width:.2f} x {height:.2f}")
 
 
 def extract_cell(input_file, cell_name, output_file):
